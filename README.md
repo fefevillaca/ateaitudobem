@@ -1,11 +1,21 @@
-# até aí tudo bem
+# app
 
-A conversa que chegou em print, aberta como no celular de quem mandou, com espaço pro grupo
-comentar cada mensagem. No ar em https://fefe.garden/ateaitudobem.
+O código do até aí tudo bem, inteiro. Desde 21/10/2026:
 
-As páginas (`public/`) moram no fefe.garden e o cofre (`api/`), que guarda a conversa trancada e
-apaga no prazo, roda na Vercel com um Redis da Upstash. A chave que tranca a conversa nasce no
-navegador e viaja só no pedaço do link depois do `#`, que nunca chega a servidor nenhum.
+- **as páginas** (`public/`) vão ao ar em https://fefe.garden/ateaitudobem pelo
+  `persona/fefevillaca/site/publicar/montar.sh`, junto com o resto do site (GitHub Pages).
+  `fefe.garden/atéaitudobem`, com acento, leva para lá;
+- **o cofre** (`api/`) roda na Vercel, projeto `ate-ai-tudo-bem` do time `fefevillacas-projects`,
+  em https://ate-ai-tudo-bem.vercel.app, região São Paulo (`gru1`), com um Redis gratuito da
+  Upstash. As páginas chamam o cofre pelo endereço que está em `public/js/lugar.js`;
+- **o código aberto** fica em https://github.com/fefevillaca/ateaitudobem, uma cópia desta pasta
+  com o `app.md` como README e a `licenca.md` como LICENSE. Ele não se atualiza sozinho.
+
+Publicar de novo: `npx vercel deploy --prod --yes --scope fefevillacas-projects` aqui para o cofre,
+e `sh persona/fefevillaca/site/publicar/montar.sh` para as páginas.
+
+Os PNGs (ícone e planetoide em `public/img/`) ficam fora do git, como todo PNG da casa; os originais
+estão em `../direcao/img/`.
 
 ## Como rodar no computador
 
@@ -13,8 +23,9 @@ navegador e viaja só no pedaço do link depois do `#`, que nunca chega a servid
 node servidor-local.mjs
 ```
 
-Abre em http://localhost:4747. Sem Redis configurado, as conversas ficam na memória e somem
-quando o servidor para. O app abre em http://localhost:4747/ateaitudobem/.
+Abre em http://localhost:4747/ateaitudobem/. Sem Redis configurado, as conversas ficam na memória e somem
+quando o servidor para. No VS Code, o atalho é a configuração `simulador-de-conversa` do
+`.claude/launch.json` da raiz.
 
 ## O que mora onde
 
@@ -22,7 +33,7 @@ quando o servidor para. O app abre em http://localhost:4747/ateaitudobem/.
   - `index.html` + `js/criar.js`: a página de montar. Escolhe a fonte, confere a leitura,
     recorta o período, cria o link e baixa a conversa.
   - `c.html` + `js/ver.js`: a página de quem recebe o link. Destranca, mostra, mantém os
-    comentários vivos (busca novos a cada 4 segundos) e apaga para quem tem o link de dona.
+    comentários vivos (busca novos a cada 4 segundos) e apaga para quem tem o link com senha.
   - `sobre.html`: como funciona e o que fica guardado.
   - `js/celular.js`: a tela do celular, usada nas duas páginas, com a barra de comentar e a
     gravação de áudio (até 2 minutos).
@@ -49,7 +60,8 @@ como resumo (sha-256), então nem ele dá para ler de lá.
 - Conversa trancada até 4 MB (dá dezenas de milhares de mensagens; o recorte de período resolve
   o que passar disso).
 - Comentário até 2,5 MB, 3000 por conversa.
-- Vídeo: um quadro a cada 0,15 segundo, até 700 quadros. Vídeo mais longo espaça os quadros.
+- Vídeo: um quadro a cada 0,15 segundo, até 700 quadros somando todos os vídeos. Vídeo mais longo
+  espaça os quadros.
 
 ## Como a leitura de prints e vídeo funciona
 
@@ -68,6 +80,9 @@ antes de ler qualquer letra, porque ler a tela inteira de uma vez não aguenta v
 - **A citação é achada pela barrinha colorida** à esquerda dela.
 - **O separador de dia de verdade anda com a conversa**; o que flutua no topo enquanto ela rola
   fica de fora.
+- **Vários vídeos viram uma conversa só.** Cada vídeo começa um trecho novo e os trechos se emendam
+  pelo texto, como os prints: o pedaço que aparece em dois vídeos entra uma vez só, e o trecho que
+  vem antes na conversa vai pra frente mesmo que o vídeo dele tenha subido depois.
 
 ## Como foi testada
 
@@ -75,7 +90,9 @@ Com dois vídeos de tela reais (iPhone, modo escuro, 384 × 832 depois de passar
 com citações e o separador flutuante) e com prints gerados de uma tela falsa em tamanho de
 iPhone, claros e escuros, sobrepostos e recortados. Nos vídeos reais, de 40 e 24 mensagens, a
 leitura acertou lado, ordem, citação e horário de todas, com erro de uma letra em poucas e um resto
-ilegível por vídeo, que se apaga na revisão. Emoji ainda vira letra solta (🥹 sai como "&").
+ilegível por vídeo, que se apaga na revisão. Os dois vídeos são da mesma conversa e se cruzam em
+9 mensagens; lidos juntos, nas duas ordens, viram as 55 mensagens na ordem certa. Emoji ainda
+vira letra solta (🥹 sai como "&").
 
 Para conferir à mão o que a leitura enxerga num quadro, `analisarQuadro(canvas)` devolve os
 balões achados, e `depuracao.registro = []` antes de ler guarda a rolagem decidida em cada quadro.

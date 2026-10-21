@@ -1,4 +1,7 @@
 .env*
 servidor-local.mjs
-README.md
+app.md
 public/teste-tmp
+.agents
+.claude
+skills-lock.json

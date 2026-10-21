@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>até aí tudo bem</title>
-<meta name="description" content="a conversa que chegou em print, aberta como no celular de quem mandou. o grupo comenta cada mensagem e o link some no prazo.">
+<meta name="description" content="a conversa que chegou em print, aberta como no celular de quem mandou. quem recebe comenta cada mensagem e o link some no prazo.">
 <meta property="og:title" content="até aí tudo bem">
-<meta property="og:description" content="a conversa que chegou em print, aberta como no celular de quem mandou. o grupo comenta cada mensagem e o link some no prazo.">
+<meta property="og:description" content="a conversa que chegou em print, aberta como no celular de quem mandou. quem recebe comenta cada mensagem e o link some no prazo.">
 <meta property="og:image" content="https://fefe.garden/ateaitudobem/img/planetoide-grao.png">
 <link rel="icon" href="img/icone-64.png">
 <link rel="apple-touch-icon" href="img/icone-180.png">
@@ -81,9 +81,9 @@
         <!-- 01 · de onde vem -->
         <div class="passo" data-passo="fonte">
           <h3>de onde vem a conversa</h3>
-          <p class="apoio">escolhe o que a sua amiga te mandou. a leitura acontece aqui no seu navegador e nada disso sai do seu aparelho.</p>
+          <p class="apoio">escolhe o que te mandaram. a leitura acontece aqui no seu navegador e nada disso sai do seu aparelho.</p>
           <div class="opcoes" id="fontes">
-            <button class="opcao" data-fonte="prints"><span class="rotulo">prints</span><span class="linha-serif">os prints que ela mandou.</span><span class="nota">na ordem da conversa; o repetido entra uma vez só.</span></button>
+            <button class="opcao" data-fonte="prints"><span class="rotulo">prints</span><span class="linha-serif">os prints que te mandaram.</span><span class="nota">na ordem da conversa; o repetido entra uma vez só.</span></button>
             <button class="opcao" data-fonte="video"><span class="rotulo">vídeo da tela</span><span class="linha-serif">a gravação rolando a conversa.</span><span class="nota">rola devagar e para um instante em cada tela.</span></button>
             <button class="opcao" data-fonte="arquivo"><span class="rotulo">conversa exportada</span><span class="linha-serif">o arquivo que o whatsapp gera.</span><span class="nota">.txt ou .zip, exportado sem mídia.</span></button>
             <button class="opcao" data-fonte="colar"><span class="rotulo">texto copiado</span><span class="linha-serif">um pedaço colado aqui.</span><span class="nota">segura uma mensagem, marca as outras e copia.</span></button>
@@ -96,8 +96,8 @@
           <h3 id="tituloMaterial">quem está na conversa</h3>
           <div id="blocoNomes">
             <p class="apoio">os balões verdes são de quem tem o celular. se for grupo, separa os outros nomes por vírgula.</p>
-            <div class="lacuna"><label for="nomeDona">de quem é o celular</label><input id="nomeDona" placeholder="o nome da sua amiga" maxlength="40" autocomplete="off"></div>
-            <div class="lacuna"><label for="nomeContato">com quem ela conversa</label><input id="nomeContato" placeholder="o nome da outra pessoa" maxlength="80" autocomplete="off"></div>
+            <div class="lacuna"><label for="nomeDona">de quem é o celular</label><input id="nomeDona" placeholder="o nome da pessoa" maxlength="40" autocomplete="off"></div>
+            <div class="lacuna"><label for="nomeContato">quem está do outro lado</label><input id="nomeContato" placeholder="o nome da outra pessoa" maxlength="80" autocomplete="off"></div>
           </div>
 
           <div data-material="prints">
@@ -114,11 +114,14 @@
 
           <div data-material="video">
             <label class="soltar" data-soltar>
-              <input type="file" id="arquivoVideo" accept="video/*" hidden>
-              <b>escolhe o vídeo ou arrasta pra cá</b>
-              <small>a gravação da tela rolando a conversa. rola devagar e para um instante em cada tela, que a leitura sai melhor.</small>
+              <input type="file" id="arquivoVideo" accept="video/*" multiple hidden>
+              <b>escolhe os vídeos ou arrasta pra cá</b>
+              <small>a gravação da tela rolando a conversa. pode ser um vídeo só ou vários, na ordem da conversa. rola devagar e para um instante em cada tela, que a leitura sai melhor.</small>
             </label>
-            <p class="nota escondido" id="videoEscolhido"></p>
+            <div id="blocoVideos" class="escondido">
+              <div class="rotulo-linha"><span>os vídeos</span><span id="contaVideos"></span></div>
+              <ol class="lista-videos" id="listaVideos"></ol>
+            </div>
           </div>
 
           <div data-material="arquivo">
@@ -156,7 +159,7 @@
         <!-- 03 · de quem é o celular -->
         <div class="passo" data-passo="celular">
           <h3>de quem é o celular</h3>
-          <p class="apoio">os balões dessa pessoa ficam verdes, à direita. quem abre o link vê a conversa do jeito que ela vê.</p>
+          <p class="apoio">os balões dessa pessoa ficam verdes, à direita. quem abre o link vê a conversa do jeito que aparece nesse celular.</p>
           <div class="opcoes" id="pessoas"></div>
           <div class="botoes">
             <button class="botao" data-continuar>continuar</button>
@@ -218,7 +221,7 @@
       <section class="pronto escondido" id="pronto">
         <p class="passo-num">05 / 05 · link criado</p>
         <img class="progresso" src="img/progresso-5.svg" alt="">
-        <h3>link criado. agora a melhor parte: mandar pro grupo.</h3>
+        <h3>link criado. agora a melhor parte: mandar pra quem vai opinar.</h3>
         <p class="apoio" id="expiraTexto"></p>
         <dl class="emprestimo" id="emprestimo"></dl>
         <div class="campo-link">
@@ -230,7 +233,7 @@
           <a class="botao contorno" id="abrirLink" target="_blank" rel="noopener">abrir</a>
         </div>
         <div class="campo-link">
-          <label for="linkDona">seu link de dona</label>
+          <label for="linkDona">seu link com senha</label>
           <div class="copiar"><input id="linkDona" readonly><button class="botao" data-copiar="linkDona">copiar</button></div>
         </div>
         <p class="nota">esse fica com você. com ele dá pra apagar a conversa antes do prazo, pelo ⋮ do celular.</p>

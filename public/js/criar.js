@@ -98,13 +98,13 @@ function ajustarBotaoLer() {
   const b = $("lerMaterial");
   b.classList.toggle("escondido", fonte === "arquivo");
   if (fonte === "prints") { b.textContent = prints.length === 1 ? "ler o print" : `ler os ${prints.length || ""} prints`.replace("  ", " "); b.disabled = !prints.length; }
-  if (fonte === "video") { b.textContent = "ler o vídeo"; b.disabled = !video; }
+  if (fonte === "video") { b.textContent = videos.length > 1 ? `ler os ${videos.length} vídeos` : "ler o vídeo"; b.disabled = !videos.length; }
   if (fonte === "colar") { b.textContent = "usar esse texto"; b.disabled = false; }
 }
 
 $("lerMaterial").onclick = () => {
   if (fonte === "prints") lerComLeitor((ocr, op) => ocr.lerImagens(prints.map(p => p.arquivo), op));
-  if (fonte === "video" && video) lerComLeitor((ocr, op) => ocr.lerVideo(video, op));
+  if (fonte === "video" && videos.length) lerComLeitor((ocr, op) => ocr.lerVideo(videos, op));
   if (fonte === "colar") usarTexto($("textoColado").value, "");
 };
 
@@ -250,16 +250,33 @@ function desenharMiniaturas() {
 }
 
 // ---------- vídeo ----------
-let video = null;
+// vários vídeos entram como os prints: na ordem da conversa, e o pedaço repetido entre um e outro
+// entra uma vez só
+let videos = [];
 $("arquivoVideo").onchange = e => {
-  const arquivo = arquivosDe(e)[0];
+  const novos = arquivosDe(e).filter(f => f.type.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(f.name));
   e.target.value = "";
-  if (!arquivo) return;
-  video = arquivo;
-  $("videoEscolhido").textContent = arquivo.name;
-  $("videoEscolhido").classList.remove("escondido");
-  ajustarBotaoLer();
+  novos.sort((a, b) => a.lastModified - b.lastModified || a.name.localeCompare(b.name, "pt", { numeric: true }));
+  videos = videos.concat(novos);
+  desenharVideos();
 };
+
+function desenharVideos() {
+  const lista = $("listaVideos"); lista.innerHTML = "";
+  $("blocoVideos").classList.toggle("escondido", !videos.length);
+  $("contaVideos").textContent = videos.length > 1 ? `${videos.length} · na ordem da conversa` : "";
+  videos.forEach((v, i) => {
+    const li = el("li");
+    const mover = (de, para) => { [videos[de], videos[para]] = [videos[para], videos[de]]; desenharVideos(); };
+    const antes = el("button", "", "‹"); antes.title = "mover pra antes"; antes.onclick = () => i > 0 && mover(i, i - 1);
+    const depois = el("button", "", "›"); depois.title = "mover pra depois"; depois.onclick = () => i < videos.length - 1 && mover(i, i + 1);
+    const tirar = el("button", "", "×"); tirar.title = "tirar"; tirar.onclick = () => { videos.splice(i, 1); desenharVideos(); };
+    const nome = el("span", "nome"); nome.textContent = v.name; // nome de arquivo entra como texto, nunca como html
+    li.append(el("span", "num", dois(i + 1)), nome, antes, depois, tirar);
+    lista.append(li);
+  });
+  ajustarBotaoLer();
+}
 
 // ---------- a leitura ----------
 function nomesInformados() {
@@ -279,7 +296,7 @@ const frases = [
 async function lerComLeitor(tarefa) {
   const nomes = nomesInformados();
   if (!nomes.dona || !nomes.outros.length) {
-    aviso("antes de ler, diz de quem é o celular e com quem ela conversa. é assim que a leitura sabe de quem é cada balão.", true);
+    aviso("antes de ler, diz de quem é o celular e quem está do outro lado. é assim que a leitura sabe de quem é cada balão.", true);
     (nomes.dona ? $("nomeContato") : $("nomeDona")).focus();
     return;
   }
@@ -301,7 +318,7 @@ async function lerComLeitor(tarefa) {
       aviso: t => { $("estadoLeitura").textContent = t; }
     });
     const n = r.itens.filter(i => i.tipo === "msg").length;
-    if (!n) throw new Error(fonte === "video" ? "não achei balões de conversa nesse vídeo. confere se é do whatsapp e tenta de novo." : "não achei balões de conversa nesses prints. confere se são do whatsapp e tenta de novo.");
+    if (!n) throw new Error(fonte === "video" ? (videos.length > 1 ? "não achei balões de conversa nesses vídeos. confere se são do whatsapp e tenta de novo." : "não achei balões de conversa nesse vídeo. confere se é do whatsapp e tenta de novo.") : "não achei balões de conversa nesses prints. confere se são do whatsapp e tenta de novo.");
     itensLidos = r.itens;
     desenharRevisao();
     await aplicarRevisao({ manterPeriodo: false });
@@ -402,7 +419,7 @@ $("criar").onclick = async () => {
     const expira = new Date(j.expiraEm);
     $("linkLeitura").value = leitura;
     $("linkDona").value = `${leitura}.${j.token}`;
-    const convite = `nem te conto. abre aí e me fala o que vocês acham. o link some em ${nomeDoPrazo(prazo)}.\n${leitura}`;
+    const convite = `nem te conto. abre aí e me fala o que acha. o link some em ${nomeDoPrazo(prazo)}.\n${leitura}`;
     $("mandarWhats").href = `https://wa.me/?text=${encodeURIComponent(convite)}`;
     $("abrirLink").href = `${leitura}.${j.token}`;
     $("expiraTexto").textContent = `a conversa saiu daqui trancada e some ${quando(expira)}.`;
@@ -410,7 +427,7 @@ $("criar").onclick = async () => {
       ["conversa", nomesDaConversa()],
       ["emprestada em", curta(new Date(criadoEm))],
       ["devolver até", curta(expira)],
-      ["quem pegou", "o grupo"]
+      ["quem pegou", "quem tiver o link"]
     ].map(([a, b]) => `<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join("");
     $("ficha").classList.add("escondido");
     $("pronto").classList.remove("escondido");

@@ -1,5 +1,5 @@
 // A página de quem recebe o link: destranca a conversa, mostra o celular e mantém o grupo de comentários vivo.
-// O link tem a forma c#id.chave e, no link de dona, c#id.chave.token
+// O link tem a forma c#id.chave e, no link com senha, c#id.chave.token
 
 import { desempacotar } from "./leitura.js";
 import { criarCelular, esc } from "./celular.js";
@@ -138,7 +138,7 @@ async function abrir() {
     ["conversa", p.length <= 2 ? p.join(" e ") : `${p.slice(0, -1).join(", ")} e ${p[p.length - 1]}`],
     ...(pacote.c ? [["emprestada em", curta(new Date(pacote.c))]] : []),
     ["devolver até", curta(new Date(expiraEm))],
-    ["quem pegou", "o grupo"]
+    ["quem pegou", "quem tiver o link"]
   ].map(([a, b]) => `<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join("");
   $("navBaixar").onclick = baixar;
   if (token) { $("navApagar").classList.remove("escondido"); $("navApagar").onclick = apagar; }

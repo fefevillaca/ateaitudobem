@@ -39,7 +39,7 @@ export async function DELETE(request) {
   const bruto = await redis("GET", `c:${id}`);
   if (!bruto) return responder({ ok: true });
   if (JSON.parse(bruto).dona !== resumo(request.headers.get("x-dona") || "")) {
-    return responder({ erro: "só o link de dona apaga a conversa." }, 403);
+    return responder({ erro: "só o link com senha apaga a conversa." }, 403);
   }
   await redis("DEL", `c:${id}`, `k:${id}`);
   return responder({ ok: true });

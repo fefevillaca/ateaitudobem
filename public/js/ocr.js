@@ -292,6 +292,8 @@ async function percorrer(proximo, { quadrosMinimos = 1 } = {}) {
     const quadro = await proximo();
     if (!quadro) break;
     const { tela } = quadro;
+    // vídeo novo começa trecho novo: o encaixe com o anterior fica para a junção por texto
+    if (quadro.quebra) anterior = null;
     const W = tela.width, H = tela.height;
     const px = tela.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, W, H).data;
     const info = lerTela(px, W, H);
@@ -706,15 +708,16 @@ function parecidos(a, b) {
   return longo.length >= 5 && distancia(x, y) <= longo.length * 0.2;
 }
 
-// Cada item novo procura um parecido no fim do que já foi lido e vota no encaixe
+// Cada item novo procura um parecido no que já foi lido e vota no encaixe
 // (a posição dele lá menos a posição dele aqui). O encaixe com mais votos decide o que é repetido.
+// Encaixe negativo quer dizer que o pedaço novo começa antes do que já foi lido (o vídeo do começo
+// da conversa subiu depois): o que vem antes entra na frente.
 export function juntar(acumulado, novos) {
   const b = novos.filter(i => i.tipo !== "msg" || i.texto);
   if (!acumulado.length) return b;
-  const inicioCauda = Math.max(0, acumulado.length - 80);
   const votos = new Map();
   b.forEach((item, j) => {
-    for (let i = inicioCauda; i < acumulado.length; i++) {
+    for (let i = 0; i < acumulado.length; i++) {
       if (parecidos(acumulado[i], item)) votos.set(i - j, (votos.get(i - j) || 0) + (item.tipo === "dia" ? 0.5 : 1));
     }
   });
@@ -725,10 +728,12 @@ export function juntar(acumulado, novos) {
     const resto = b[0]?.tipo === "dia" && dia && +b[0].data === +dia.data ? b.slice(1) : b;
     return acumulado.concat(resto);
   }
-  const juntos = acumulado.slice();
+  const antes = encaixe < 0 ? b.slice(0, -encaixe) : [];
+  const juntos = antes.concat(acumulado);
+  encaixe += antes.length;
   b.forEach((n, j) => {
+    if (j < antes.length) return;
     const i = encaixe + j;
-    if (i < 0) return;
     if (i >= juntos.length) { juntos.push(n); return; }
     const a = juntos[i];
     if (n.tipo !== "msg" || a.tipo !== "msg") return;
@@ -789,38 +794,62 @@ function ir(video, t) {
   return new Promise(ok => { video.onseeked = () => ok(); video.currentTime = t; });
 }
 
-export async function lerVideo(arquivo, { nomes, progresso = () => {}, aviso = () => {} } = {}) {
-  const n = normalizarNomes(nomes);
-  const lerJunto = preparar(aviso);
+function abrirVideo(arquivo) {
   const video = document.createElement("video");
   video.muted = true; video.playsInline = true; video.preload = "auto";
   const url = URL.createObjectURL(arquivo);
   video.src = url;
-  await new Promise((ok, falha) => {
-    video.onloadeddata = ok;
-    video.onerror = () => falha(new Error("o vídeo não abriu neste navegador. tenta no chrome ou no safari."));
+  return new Promise((ok, falha) => {
+    video.onloadeddata = async () => {
+      // vídeo gravado no navegador às vezes chega sem duração até ir ao fim
+      if (!isFinite(video.duration)) { await ir(video, 1e7); await ir(video, 0); }
+      ok({ video, url });
+    };
+    video.onerror = () => { URL.revokeObjectURL(url); falha(new Error(`o vídeo ${arquivo.name} não abriu neste navegador. tenta no chrome ou no safari.`)); };
   });
-  // vídeo gravado no navegador às vezes chega sem duração até ir ao fim
-  if (!isFinite(video.duration)) { await ir(video, 1e7); await ir(video, 0); }
-  const W = video.videoWidth, H = video.videoHeight, duracao = video.duration;
+}
+
+// aceita um vídeo ou vários, na ordem da conversa
+export async function lerVideo(arquivos, { nomes, progresso = () => {}, aviso = () => {} } = {}) {
+  const lista = Array.isArray(arquivos) ? arquivos : [arquivos];
+  const n = normalizarNomes(nomes);
+  const lerJunto = preparar(aviso);
+  const abertos = [];
+  try {
+    for (const arquivo of lista) abertos.push(await abrirVideo(arquivo));
+  } catch (erro) { abertos.forEach(a => URL.revokeObjectURL(a.url)); throw erro; }
+  const total = abertos.reduce((s, a) => s + a.video.duration, 0);
   const tela = document.createElement("canvas");
-  tela.width = W; tela.height = H;
   const ctx = tela.getContext("2d", { willReadFrequently: true });
-  const passo = Math.max(0.15, duracao / 700);
-  let t = 0;
-  aviso("assistindo o vídeo · 0%");
+  const passo = Math.max(0.15, total / 700);
+  let k = 0, t = 0, visto = 0, quebra = false;
+  const porcento = () => Math.round(100 * Math.min(1, (visto + t) / total));
+  const qual = () => lista.length > 1 ? ` ${k + 1} de ${lista.length}` : "";
+  aviso(`assistindo o vídeo${qual()} · 0%`);
   const baloes = await percorrer(async () => {
-    if (t > duracao) return null;
-    await ir(video, Math.min(t, duracao - 0.02));
+    for (;;) {
+      if (k >= abertos.length) return null;
+      const { video } = abertos[k];
+      if (t <= video.duration) break;
+      visto += video.duration; k++; t = 0; quebra = true;
+    }
+    const { video } = abertos[k];
+    const W = video.videoWidth, H = video.videoHeight;
+    if (tela.width !== W || tela.height !== H) { tela.width = W; tela.height = H; }
+    await ir(video, Math.min(t, video.duration - 0.02));
     ctx.drawImage(video, 0, 0, W, H);
-    progresso(0.55 * Math.min(1, t / duracao));
-    aviso(`assistindo o vídeo · ${Math.round(100 * Math.min(1, t / duracao))}%`);
+    progresso(0.55 * porcento() / 100);
+    aviso(`assistindo o vídeo${qual()} · ${Math.round(100 * Math.min(1, t / video.duration))}%`);
     t += passo;
-    return { tela };
+    const q = { tela, quebra };
+    quebra = false;
+    return q;
   }, { quadrosMinimos: 4 });
-  URL.revokeObjectURL(url);
+  abertos.forEach(a => URL.revokeObjectURL(a.url));
   await lerJunto;
-  if (!baloes.length) throw new Error("não achei a conversa nesse vídeo. grava de novo rolando devagar, com uma pausa em cada tela.");
+  if (!baloes.length) throw new Error(lista.length > 1
+    ? "não achei a conversa nesses vídeos. grava de novo rolando devagar, com uma pausa em cada tela."
+    : "não achei a conversa nesse vídeo. grava de novo rolando devagar, com uma pausa em cada tela.");
   return lerBaloes(baloes, n, { progresso: p => progresso(0.55 + 0.45 * p), aviso });
 }
 
