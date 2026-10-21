@@ -1,0 +1,17 @@
+{
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "regions": ["gru1"],
+  "redirects": [
+    { "source": "/", "destination": "https://fefe.garden/ateaitudobem/", "permanent": false }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}

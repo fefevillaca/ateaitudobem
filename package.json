@@ -1,0 +1,12 @@
+{
+  "name": "simulador-de-conversa",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node servidor-local.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,4 @@
+.env*
+servidor-local.mjs
+README.md
+public/teste-tmp
