@@ -68,10 +68,87 @@ function corMaisComum(d, W, x0, x1, y0, y1, passo = 1) {
 // ---------- a tela: papel de parede, topo e barra de baixo ----------
 const TOLERANCIA_PAPEL = 24;
 
+// Papel de parede de foto (céu, gente, textura) não tem cor dominante. Aí vale o contrário: o balão
+// é que tem cor lisa, com borda nítida, e a foto quase nunca. As cores dos balões são achadas nas
+// corridas longas de cor parada que começam e terminam num salto de cor (a borda do balão ou uma letra).
+function coresDeBalao(px, W, topo, base) {
+  const conta = new Map();
+  let total = 0;
+  const passo = Math.max(1, Math.round((base - topo) / 400));
+  const minimo = Math.max(12, Math.round(W * 0.05));
+  for (let y = topo; y < base; y += passo) {
+    let x = 1;
+    while (x < W - 1) {
+      const i0 = (y * W + x) * 4;
+      let r = px[i0], g = px[i0 + 1], b = px[i0 + 2], n = 1, fim = x + 1;
+      for (; fim < W - 1; fim++) {
+        const i = (y * W + fim) * 4, j = i - 4;
+        const media = [r / n, g / n, b / n];
+        // a compressão do whatsapp deixa um chuvisco de poucos tons dentro do balão liso
+        if (distancia3(px, i, media) > 22 || distancia3(px, i, [px[j], px[j + 1], px[j + 2]]) > 14) break;
+        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+      }
+      if (n >= minimo) {
+        const media = [r / n, g / n, b / n];
+        const antes = distancia3(px, (y * W + x - 1) * 4, media), depois = distancia3(px, (y * W + fim) * 4, media);
+        if (antes >= 30 && depois >= 30) {
+          const k = (media[0] >> 3) << 10 | (media[1] >> 3) << 5 | (media[2] >> 3);
+          const e = conta.get(k) || [0, 0, 0, 0];
+          e[0] += media[0] * n; e[1] += media[1] * n; e[2] += media[2] * n; e[3] += n;
+          conta.set(k, e); total += n;
+        }
+      }
+      x = fim;
+    }
+  }
+  const cores = [];
+  // cor da foto que por acaso forma faixa lisa fica de fora: ela não tem o desenho de balão
+  for (const e of [...conta.values()].sort((a, c) => c[3] - a[3])) {
+    if (e[3] < total * 0.02 || cores.length >= 5) break;
+    const cor = [e[0] / e[3], e[1] / e[3], e[2] / e[3]];
+    if (cores.some(c => Math.abs(c[0] - cor[0]) + Math.abs(c[1] - cor[1]) + Math.abs(c[2] - cor[2]) < 18)) continue;
+    if (temDesenhoDeBalao(px, W, topo, base, cor)) cores.push(cor);
+  }
+  return cores;
+}
+
+// O balão do outro lado começa sempre na mesma margem esquerda, o de quem tem o celular termina na
+// mesma margem direita, e o separador de dia fica no meio. Cor de foto não respeita essas margens.
+function temDesenhoDeBalao(px, W, topo, base, cor) {
+  const igual = (x, y) => distancia3(px, (y * W + x) * 4, cor) < 26;
+  let comCor = 0, desenho = 0, borda = 0;
+  const passo = Math.max(1, Math.round((base - topo) / 300));
+  for (let y = topo; y < base; y += passo) {
+    let ini = -1, fim = -1, n = 0;
+    for (let x = 0; x < W; x++) if (igual(x, y)) { n++; if (ini < 0) ini = x; fim = x; }
+    if (n < W * 0.05) continue;
+    comCor++;
+    if (ini < W * 0.008 || fim > W * 0.992) borda++;
+    const esquerda = ini > W * 0.012 && ini < W * 0.045 && !igual(ini - 1 - Math.round(W * 0.004), y);
+    const direita = fim > W * 0.955 && fim < W * 0.99 && !igual(Math.min(W - 1, fim + 1 + Math.round(W * 0.004)), y);
+    const meio = Math.abs(ini + fim - W) < W * 0.03 && fim - ini < W * 0.6;
+    if (esquerda || direita || meio) desenho++;
+  }
+  // balão nunca encosta na borda da tela; foto encosta quase sempre
+  return desenho >= 3 && desenho >= comCor * 0.25 && borda < desenho;
+}
+
 function lerTela(px, W, H) {
   const x = Math.max(1, Math.round(W * 0.012));
   const papel = corMaisComum(px, W, x, x + 1, Math.round(H * 0.25), Math.round(H * 0.8), 1);
   const naBorda = y => distancia3(px, (y * W + x) * 4, papel) < TOLERANCIA_PAPEL;
+  // Papel liso é a mesma cor nas duas bordas, de cima a baixo. Se uma das bordas varia, ou se as
+  // duas não batem (a foto tem uma parede lisa de um lado só), o papel é foto
+  const xd = W - 1 - x;
+  const papelDireita = corMaisComum(px, W, xd, xd + 1, Math.round(H * 0.25), Math.round(H * 0.8), 1);
+  let liso = 0, lisoDireita = 0, vistos = 0;
+  for (let y = Math.round(H * 0.25); y < H * 0.8; y += 2) {
+    vistos++;
+    if (naBorda(y)) liso++;
+    if (distancia3(px, (y * W + xd) * 4, papelDireita) < TOLERANCIA_PAPEL) lisoDireita++;
+  }
+  const foto = liso < vistos * 0.6 || lisoDireita < vistos * 0.6 ||
+    Math.abs(papel[0] - papelDireita[0]) + Math.abs(papel[1] - papelDireita[1]) + Math.abs(papel[2] - papelDireita[2]) > TOLERANCIA_PAPEL;
   let topo = 0, base = H;
   for (let y = 0, n = 0; y < H * 0.25; y++) { n = naBorda(y) ? n + 1 : 0; if (n === 8) { topo = y - 7; break; } }
   for (let y = H - 1, n = 0; y > H * 0.7; y--) { n = naBorda(y) ? n + 1 : 0; if (n === 8) { base = y + 8; break; } }
@@ -79,22 +156,52 @@ function lerTela(px, W, H) {
   // tela cheia tem sempre o topo com o nome e a barra de digitar. No iPhone novo eles são
   // translúcidos e quase da cor do papel, então vale a altura de costume
   if (H / W > 1.7) { topo = Math.max(topo, Math.round(H * 0.1)); base = Math.min(base, Math.round(H * 0.915)); }
-  return { papel, escuro: luzDe(...papel) < 90, topo, base };
+  if (!foto) return { papel, escuro: luzDe(...papel) < 90, topo, base };
+  // na foto, a cor da borda não diz onde a conversa começa; vale a altura de costume das barras
+  if (H / W > 1.7) { topo = Math.round(H * 0.1); base = Math.round(H * 0.915); } else { topo = 0; base = H; }
+  const baloes = coresDeBalao(px, W, topo, base);
+  const cinza = baloes.find(c => !ehVerde(...c)) || papel;
+  return { papel, foto: true, baloes, escuro: luzDe(...cinza) < 90, topo, base };
 }
 
 // ---------- os balões de uma tela ----------
 function acharBlocos(px, W, H, tela) {
   const { papel, topo, base } = tela;
+  // no papel liso, balão é o que foge da cor do papel; no papel de foto, é o que tem a cor de um balão
+  const pertoDeBalao = i => { let m = 999; for (const c of tela.baloes) m = Math.min(m, distancia3(px, i, c)); return m; };
+  const ehBalao = tela.foto ? i => pertoDeBalao(i) < 22 : i => distancia3(px, i, papel) >= TOLERANCIA_PAPEL;
+  const forcaDe = tela.foto ? i => 60 - Math.min(pertoDeBalao(i), 60) : i => Math.min(distancia3(px, i, papel), 60);
   const corridaMinima = Math.max(6, Math.round(W * 0.025));
   // Balão é região cheia; o desenho do papel de parede e o ruído da compressão são pontos soltos.
   // Cada ponto conta como balão quando quase toda a vizinhança dele (15 × 3) foge da cor do papel.
   // A janela é baixa para não atravessar a fresta de dois pixels entre um balão e outro.
   const alto = base - topo;
   const integral = new Uint32Array((W + 1) * (alto + 1));
+  const marca = new Uint8Array(W);
   for (let y = 0; y < alto; y++) {
+    for (let x = 0; x < W; x++) marca[x] = ehBalao(((y + topo) * W + x) * 4) ? 1 : 0;
+    // No papel de foto, a letra e a resposta citada não têm a cor do balão. Como o WhatsApp nunca
+    // põe dois balões lado a lado, o que fica entre dois pedaços de cor de balão na mesma linha é
+    // de dentro do balão
+    if (tela.foto) {
+      // pedaço de cor de balão que encosta na borda da tela é foto
+      const beira = Math.max(2, Math.round(W * 0.008));
+      for (let s = 0; s <= beira; s++) if (marca[s]) { for (let x = s; x < W && marca[x]; x++) marca[x] = 0; break; }
+      for (let s = W - 1; s >= W - 1 - beira; s--) if (marca[s]) { for (let x = s; x >= 0 && marca[x]; x--) marca[x] = 0; break; }
+      let ultimoFim = -1;
+      for (let x = 0; x < W;) {
+        if (!marca[x]) { x++; continue; }
+        let f = x; while (f < W && marca[f]) f++;
+        if (f - x >= 4) {
+          if (ultimoFim >= 0 && x - ultimoFim < W * 0.8) marca.fill(1, ultimoFim, x);
+          ultimoFim = f;
+        }
+        x = f;
+      }
+    }
     let linha = 0;
     for (let x = 0; x < W; x++) {
-      if (distancia3(px, ((y + topo) * W + x) * 4, papel) >= TOLERANCIA_PAPEL) linha++;
+      linha += marca[x];
       integral[(y + 1) * (W + 1) + x + 1] = integral[y * (W + 1) + x + 1] + linha;
     }
   }
@@ -112,7 +219,7 @@ function acharBlocos(px, W, H, tela) {
       if (x < W && cheio(x, y)) {
         const i = ((y + topo) * W + x) * 4;
         if (!corrida) inicio = x;
-        corrida++; corridaForca += Math.min(distancia3(px, i, papel), 60);
+        corrida++; corridaForca += forcaDe(i);
         if (ehVerde(px[i], px[i + 1], px[i + 2])) corridaVerde++;
       } else if (corrida) {
         if (corrida >= corridaMinima) {
@@ -129,8 +236,16 @@ function acharBlocos(px, W, H, tela) {
   acharBlocos.linhas = linhas; // para conferência à mão
   const faixas = [];
   let atual = null;
+  // Balão é retângulo: de uma linha para a outra a largura só muda devagar, nos cantos. Um salto
+  // grande é outro balão colado, ou um pedaço de foto da mesma cor encostado no balão
+  const salto = W * 0.06;
   linhas.forEach((l, k) => {
-    if (l.cont >= W * 0.045) { if (atual) atual.fim = k; else atual = { ini: k, fim: k }; }
+    const cheia = l.cont >= W * 0.045;
+    const ant = linhas[k - 1];
+    if (cheia && atual && tela.foto && (Math.abs(l.primeiro - ant.primeiro) > salto || Math.abs(l.ultimo - ant.ultimo) > salto)) {
+      faixas.push(atual); atual = null;
+    }
+    if (cheia) { if (atual) atual.fim = k; else atual = { ini: k, fim: k }; }
     else if (atual) { faixas.push(atual); atual = null; }
   });
   if (atual) faixas.push(atual);
@@ -171,6 +286,7 @@ function acharBlocos(px, W, H, tela) {
     // o separador "Hoje" é estreito; balão de conversa nunca é tão estreito assim
     const centrado = Math.abs((x0 + x1) / 2 - W / 2) < W * 0.07;
     if (w < W * (centrado ? 0.05 : 0.1)) continue;
+    if (tela.foto && (x0 < W * 0.008 || x1 > W * 0.992)) continue;
     let cont = 0, verde = 0;
     for (let k = f.ini; k <= f.fim; k++) { cont += linhas[k].cont; verde += linhas[k].verde; }
     const fracVerde = verde / Math.max(1, cont), centro = (x0 + x1) / 2;
@@ -274,14 +390,35 @@ function deslocamentoPorBaloes(a, b, H) {
 }
 
 // ---------- percorre os quadros e guarda cada balão uma vez ----------
-function recortar(tela, b, W, H) {
+function recortar(tela, b, W, H, info) {
   const m = 3;
   const x0 = Math.max(0, b.x0 - m), y0 = Math.max(0, b.y0 - m);
   const x1 = Math.min(W, b.x1 + m), y1 = Math.min(H, b.y1 + m);
   const c = document.createElement("canvas");
   c.width = x1 - x0; c.height = y1 - y0;
-  c.getContext("2d", { willReadFrequently: true }).drawImage(tela, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(tela, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+  if (info?.foto) taparFoto(ctx, c.width, c.height, info.baloes);
   return c;
+}
+
+// No papel de foto, o que sobra da foto em volta do balão (a margem e os cantos arredondados) vira
+// letra torta na leitura. Cada linha é pintada com a cor do balão, de fora para dentro, até a borda dele.
+function taparFoto(ctx, w, h, cores) {
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  const perto = i => { let m = 999, k = 0; cores.forEach((c, j) => { const v = distancia3(d, i, c); if (v < m) { m = v; k = j; } }); return [m, k]; };
+  const votos = cores.map(() => 0);
+  for (let y = Math.floor(h * 0.3); y < h * 0.7; y += 2) for (let x = 0; x < w; x += 3) { const [v, k] = perto((y * w + x) * 4); if (v < 22) votos[k]++; }
+  const cor = cores[votos.indexOf(Math.max(...votos))];
+  if (!cor) return;
+  const pintar = i => { d[i] = cor[0]; d[i + 1] = cor[1]; d[i + 2] = cor[2]; };
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    for (; x < w && perto((y * w + x) * 4)[0] >= 22; x++) pintar((y * w + x) * 4);
+    if (x >= w) continue;
+    for (let z = w - 1; z > x && perto((y * w + z) * 4)[0] >= 22; z--) pintar((y * w + z) * 4);
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 async function percorrer(proximo, { quadrosMinimos = 1 } = {}) {
@@ -323,7 +460,7 @@ async function percorrer(proximo, { quadrosMinimos = 1 } = {}) {
       const nota = Math.abs(s ?? 0) + (noTopo ? 40 : 0) + (b.y1 > info.topo + regiao * 0.86 ? 25 : 0);
       const igual = baloes.find(e => e.segmento === segmento && e.tipo === b.tipo && Math.abs(e.A0 - A0) <= tolY && Math.abs(e.h - h) <= tolH);
       if (!igual) {
-        baloes.push({ segmento, A0, h, tipo: b.tipo, vezes: 1, larguraTela: W, alturaTela: H, yMin: b.y0, yMax: b.y0, foraDoTopo: !noTopo, instancias: [{ recorte: recortar(tela, b, W, H), nota, y: b.y0 }] });
+        baloes.push({ segmento, A0, h, tipo: b.tipo, foto: !!info.foto, vezes: 1, larguraTela: W, alturaTela: H, yMin: b.y0, yMax: b.y0, foraDoTopo: !noTopo, instancias: [{ recorte: recortar(tela, b, W, H, info), nota, y: b.y0 }] });
         continue;
       }
       // guarda até três versões, de lugares diferentes da tela, para ler a melhor
@@ -333,9 +470,9 @@ async function percorrer(proximo, { quadrosMinimos = 1 } = {}) {
       const perto = igual.instancias.find(i => Math.abs(i.y - b.y0) < 8);
       if (perto) {
         if (perto.nota <= nota) continue;
-        Object.assign(perto, { recorte: recortar(tela, b, W, H), nota });
+        Object.assign(perto, { recorte: recortar(tela, b, W, H, info), nota });
       } else {
-        igual.instancias.push({ recorte: recortar(tela, b, W, H), nota, y: b.y0 });
+        igual.instancias.push({ recorte: recortar(tela, b, W, H, info), nota, y: b.y0 });
       }
       igual.instancias.sort((x, y) => x.nota - y.nota);
       igual.instancias.length = Math.min(igual.instancias.length, 3);
@@ -586,6 +723,10 @@ async function lerMelhor(b, nomes, leitor) {
   }
   // leitura que nem a melhor versão entende é resto de imagem
   if (melhor.confianca < 35 && melhor.tipo !== "dia") return null;
+  // No papel de foto, um pedaço da foto pode ter cara de balão. Balão de verdade tem horário no
+  // canto; sem horário, só fica a leitura bem firme
+  if (b.foto && melhor.tipo === "msg" && !melhor.hora && melhor.confianca < 50) return null;
+  if (b.foto && melhor.tipo === "sistema" && melhor.confianca < 75) return null;
   delete melhor.confianca; delete melhor.horaDoCanto;
   return melhor;
 }

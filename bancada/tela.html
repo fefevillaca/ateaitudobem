@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html { zoom: 1.28205; }
+  html, body { width: 390px; height: 844px; overflow: hidden; font: 17px/1.3 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  #fundo { position: fixed; inset: 0; width: 390px; height: 844px; }
+  .status { position: fixed; top: 0; left: 0; right: 0; height: 50px; display: flex; justify-content: space-between; align-items: center; padding: 14px 32px 0; font-weight: 600; font-size: 16px; z-index: 3; }
+  .topo { position: fixed; top: 50px; left: 0; right: 0; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 12px; z-index: 3; backdrop-filter: blur(20px); }
+  .topo .av { width: 36px; height: 36px; border-radius: 50%; background: #b9785a; }
+  .topo b { font-size: 16px; }
+  .status, .topo { background: var(--barra); color: var(--tinta); }
+  .chat { position: absolute; top: 116px; left: 0; right: 0; padding: 0 8px; display: flex; flex-direction: column; gap: 3px; }
+  .dia { align-self: center; margin: 8px 0; padding: 4px 10px; border-radius: 8px; font-size: 13px; background: var(--chip); color: var(--hora); }
+  .m { max-width: 78%; padding: 6px 8px 7px 9px; border-radius: 8px; color: var(--tinta); position: relative; }
+  .m.e { align-self: flex-end; background: var(--eu); }
+  .m.o { align-self: flex-start; background: var(--outro); }
+  .m.e.novo { margin-top: 6px; border-top-right-radius: 0; }
+  .m.o.novo { margin-top: 6px; border-top-left-radius: 0; }
+  .hora { float: right; font-size: 11px; margin: 9px 0 -4px 10px; color: var(--hora); }
+  .m.e .hora::after { content: " ✓✓"; color: #53bdeb; }
+  .cit { background: var(--cit); border-left: 4px solid #06cf9c; border-radius: 6px; padding: 5px 8px; margin-bottom: 5px; font-size: 14px; }
+  .cit b { display: block; color: #06cf9c; font-size: 13px; }
+  .barra-baixo { position: fixed; left: 0; right: 0; bottom: 0; height: 84px; background: var(--barra); z-index: 3; }
+  .barra-baixo i { position: absolute; left: 50px; right: 50px; top: 10px; height: 36px; border-radius: 18px; background: var(--campo); }
+  body.escuro { --eu: #144d37; --outro: #262628; --tinta: #e9edef; --hora: #9aa3a8; --chip: #1d1f1f; --cit: rgba(0,0,0,.28); --barra: rgba(18,18,18,.86); --campo: #2c2c2e; }
+  body.claro { --eu: #dcf7c5; --outro: #ffffff; --tinta: #111b21; --hora: #667781; --chip: #ffffff; --cit: rgba(0,0,0,.06); --barra: rgba(246,246,246,.88); --campo: #ffffff; }
+</style></head>
+<body>
+<canvas id="fundo" width="1170" height="2532"></canvas>
+<div class="status"><span>00:28</span><span>●●● 82%</span></div>
+<div class="topo"><span>‹</span><div class="av"></div><b>Rafa</b></div>
+<div class="chat" id="chat"></div>
+<div class="barra-baixo"><i></i></div>
+<script type="module">
+import { LOTES } from "./conversa.js";
+const q = new URLSearchParams(location.search);
+const modo = q.get("modo") || "escuro", fundo = q.get("fundo") || "ceu", escurecer = +(q.get("escurecer") || 0);
+const lote = q.get("lote") === "todos" ? -1 : +(q.get("lote") || 0), rolagem = +(q.get("y") || 0);
+document.body.className = modo;
+
+// a conversa
+const chat = document.getElementById("chat");
+let ladoAnterior = null;
+chat.style.top = `${116 - rolagem}px`;
+for (const [lado, texto, hora, cit] of (lote < 0 ? LOTES.flat() : LOTES[lote])) {
+  if (lado === "dia") { const d = document.createElement("div"); d.className = "dia"; d.textContent = texto; chat.append(d); ladoAnterior = null; continue; }
+  const m = document.createElement("div");
+  m.className = `m ${lado}${lado !== ladoAnterior ? " novo" : ""}`;
+  if (cit) { const c = document.createElement("div"); c.className = "cit"; c.innerHTML = `<b></b><span></span>`; c.querySelector("b").textContent = cit[0]; c.querySelector("span").textContent = cit[1]; m.append(c); }
+  m.append(texto);
+  const h = document.createElement("span"); h.className = "hora"; h.textContent = hora; m.append(h);
+  chat.append(m); ladoAnterior = lado;
+}
+
+// o papel de parede
+const cv = document.getElementById("fundo"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+let semente = 7;
+const aleatorio = () => (semente = (semente * 16807) % 2147483647) / 2147483647;
+function ruido(escala, oitavas) {
+  // ruído de valor em grade, somado em oitavas: dá nuvem, folhagem ou grão conforme a escala
+  const camadas = [];
+  for (let o = 0; o < oitavas; o++) {
+    const n = Math.ceil(escala * 2 ** o) + 2, g = new Float32Array(n * n).map(aleatorio);
+    camadas.push({ n, g, f: escala * 2 ** o, a: 0.5 ** o });
+  }
+  return (x, y) => {
+    let s = 0, t = 0;
+    for (const { n, g, f, a } of camadas) {
+      const X = x / W * f, Y = y / H * f * (H / W), i = Math.floor(X), j = Math.floor(Y), u = X - i, v = Y - j;
+      const k = (a1, b1) => g[((j + b1) % n) * n + ((i + a1) % n)];
+      const su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v);
+      s += a * ((k(0, 0) * (1 - su) + k(1, 0) * su) * (1 - sv) + (k(0, 1) * (1 - su) + k(1, 1) * su) * sv); t += a;
+    }
+    return s / t;
+  };
+}
+function pintar(cor) {
+  const img = ctx.createImageData(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const [r, g, b] = cor(x, y), i = (y * W + x) * 4;
+    img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+async function foto(src) {
+  const img = new Image(); img.src = src; await img.decode();
+  const s = Math.max(W / img.width, H / img.height);
+  ctx.drawImage(img, (W - img.width * s) / 2, (H - img.height * s) / 2, img.width * s, img.height * s);
+}
+if (fundo === "ceu") {
+  const n = ruido(3, 6);
+  pintar((x, y) => { const c = Math.max(0, Math.min(1, (n(x, y) - 0.45) * 2.6)); const azul = [70 + y / H * 60, 130 + y / H * 50, 200 + y / H * 30]; return azul.map((v, k) => v * (1 - c) + [245, 247, 250][k] * c); });
+} else if (fundo === "folhas") {
+  const n = ruido(14, 4), m = ruido(5, 3);
+  pintar((x, y) => { const a = n(x, y), b = m(x, y); return [30 + a * 70, 70 + a * 120 + b * 30, 25 + b * 50]; });
+} else if (fundo === "grao") {
+  const n = ruido(60, 3);
+  pintar((x, y) => { const a = n(x, y) * 200 + aleatorio() * 55; return [a * 0.9, a * 0.85, a * 0.8]; });
+} else if (fundo === "por-do-sol") {
+  pintar((x, y) => { const t = y / H; return [250 - t * 120, 140 - t * 90 + Math.sin(x / 90) * 6, 80 + t * 90]; });
+} else if (fundo === "liso") {
+  ctx.fillStyle = modo === "escuro" ? "#0b141a" : "#efeae2"; ctx.fillRect(0, 0, W, H);
+} else {
+  await foto(`fundos/${fundo}.jpg`);
+}
+// o "escurecer papel de parede" do modo escuro
+if (escurecer) { ctx.fillStyle = `rgba(0,0,0,${escurecer})`; ctx.fillRect(0, 0, W, H); }
+document.title = "pronto";
+</script>
+</body></html>

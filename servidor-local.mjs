@@ -40,8 +40,10 @@ http.createServer(async (req, res) => {
       res.writeHead(resposta.status, Object.fromEntries(resposta.headers));
       return res.end(Buffer.from(await resposta.arrayBuffer()));
     }
-    let arquivo = path.join(publico, decodeURIComponent(url.pathname));
-    if (!arquivo.startsWith(publico)) { res.writeHead(403); return res.end(); }
+    // a bancada de teste da leitura só existe aqui no computador; ela não vai para o ar
+    const raiz = url.pathname.startsWith("/bancada/") ? aqui : publico;
+    let arquivo = path.join(raiz, decodeURIComponent(url.pathname));
+    if (!arquivo.startsWith(raiz)) { res.writeHead(403); return res.end(); }
     try { if ((await stat(arquivo)).isDirectory()) arquivo = path.join(arquivo, "index.html"); }
     catch { arquivo += ".html"; }
     const conteudo = await readFile(arquivo);

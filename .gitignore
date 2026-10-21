@@ -6,3 +6,7 @@ public/teste-tmp
 .agents
 .claude
 skills-lock.json
+# os prints e as fotos da bancada são gerados pelo bancada/gerar.sh
+bancada/prints
+bancada/rolagem
+bancada/fundos
