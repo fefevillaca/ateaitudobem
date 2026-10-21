@@ -31,7 +31,7 @@ function sumiu(desenho, titulo, texto) {
   $("sumiu").classList.remove("escondido");
   document.title = `${titulo} · até aí tudo bem`;
 }
-const prazoAcabou = () => sumiu("fio-cortado", "essa conversa já sumiu.", "o prazo acabou ou quem criou o link apagou antes. ela não fica guardada em lugar nenhum, então não tem como recuperar.");
+const prazoAcabou = () => sumiu("fio-cortado", "processo arquivado. essa conversa já foi picotada.", "o prazo acabou ou quem criou o link apagou antes. ela não fica guardada em lugar nenhum, então não tem como recuperar.");
 
 function contar() {
   const resta = expiraEm - Date.now();

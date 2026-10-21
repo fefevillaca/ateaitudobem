@@ -41,12 +41,12 @@ window.addEventListener("hashchange", vista);
 
 // ---------- os passos ----------
 const PASSOS = {
-  fonte: [1, "de onde vem a conversa"],
-  material: [1, "de onde vem a conversa"],
-  confere: [2, "confere a leitura"],
-  celular: [3, "de quem é o celular"],
+  fonte: [1, "qual é a prova"],
+  material: [1, "qual é a prova"],
+  confere: [2, "confere a transcrição"],
+  celular: [3, "titular do celular"],
   pedaco: [4, "que pedaço mostrar"],
-  prazo: [5, "quanto tempo fica no ar"]
+  prazo: [5, "quanto tempo fica arquivada"]
 };
 const historico = [];
 
@@ -82,7 +82,7 @@ document.querySelectorAll("#fontes .opcao").forEach(b => b.onclick = () => {
   document.querySelectorAll("#fontes .opcao").forEach(x => x.classList.toggle("escolhida", x === b));
   const comNomes = fonte === "prints" || fonte === "video";
   $("blocoNomes").classList.toggle("escondido", !comNomes);
-  $("tituloMaterial").textContent = { prints: "quem está na conversa", video: "quem está na conversa", arquivo: "a conversa exportada", colar: "o texto copiado" }[fonte];
+  $("tituloMaterial").textContent = { prints: "as partes envolvidas", video: "as partes envolvidas", arquivo: "a conversa exportada", colar: "o texto copiado" }[fonte];
   document.querySelectorAll("[data-material]").forEach(m => m.classList.toggle("escondido", m.dataset.material !== fonte));
   aviso("");
   ajustarBotaoLer();
@@ -287,8 +287,9 @@ function nomesInformados() {
 
 const frases = [
   "procurando os balões nos prints.",
+  "autenticando os balões.",
   "separando o verde do branco.",
-  "conferindo o horário de cada mensagem.",
+  "conferindo firma de cada horário.",
   "tirando o que se repete entre um print e outro.",
   "calma, ainda tem balão pra ler."
 ];
@@ -296,7 +297,7 @@ const frases = [
 async function lerComLeitor(tarefa) {
   const nomes = nomesInformados();
   if (!nomes.dona || !nomes.outros.length) {
-    aviso("antes de ler, diz de quem é o celular e quem está do outro lado. é assim que a leitura sabe de quem é cada balão.", true);
+    aviso("antes de ler, diz quem é titular do celular e quem é a outra parte. é assim que a leitura sabe de quem é cada balão.", true);
     (nomes.dona ? $("nomeContato") : $("nomeDona")).focus();
     return;
   }
@@ -322,7 +323,7 @@ async function lerComLeitor(tarefa) {
     itensLidos = r.itens;
     desenharRevisao();
     await aplicarRevisao({ manterPeriodo: false });
-    aviso(`até aí, tudo bem. li ${n} mensagens. confere a leitura aqui embaixo antes de criar o link.`);
+    aviso(`até aí, tudo bem. li ${n} mensagens. confere a transcrição aqui embaixo antes de criar o link.`);
     irPara("confere");
   } catch (erro) {
     mostrarFicha();

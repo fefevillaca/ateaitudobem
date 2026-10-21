@@ -33,14 +33,14 @@ const MOLDE = `
         <button class="fechar" data-cancelar aria-label="cancelar">×</button>
       </div>
       <div class="campo">
-        <input data-texto placeholder="fala o que você acha" autocomplete="off" maxlength="2000">
+        <input data-texto placeholder="dá seu parecer" autocomplete="off" maxlength="2000">
         <button class="botao-redondo" data-acao aria-label="gravar áudio"></button>
       </div>
     </div>
     <div class="entrar escondido" data-entrar>
       <form data-form>
         <img src="img/espiral-claro.svg" alt="">
-        <h2>entra no grupo</h2>
+        <h2>assina a lista de presença</h2>
         <input data-nome placeholder="seu nome ou apelido" maxlength="24" autocomplete="nickname">
         <button>entrar</button>
         <p>seus comentários e áudios aparecem pra todo mundo que tem o link e somem junto com a conversa.</p>
@@ -63,7 +63,7 @@ export function criarCelular(raiz, opcoes = {}) {
 
   let conversa = null, lista = [], comentarios = [], respondendo = null, acaoPendente = null;
   const dicaPadrao = opcoes.dica || "toca num balão pra comentar";
-  const placeholder = opcoes.placeholder || "fala o que você acha";
+  const placeholder = opcoes.placeholder || "dá seu parecer";
 
   q("relogio").textContent = hora(new Date());
   dica.textContent = dicaPadrao;
